@@ -1,0 +1,4 @@
+name = Let's Chat
+description = Let's Chat is an application for abtPrecinct HR department for employee development.
+core = 7.x
+package = "abtPrecinct Let's Chat"

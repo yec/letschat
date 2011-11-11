@@ -1,0 +1,909 @@
+<?php
+// vim: set filetype=php expandtab tabstop=2 shiftwidth=2 autoindent smartindent:
+/**
+ * @file
+ * Let's Chat application for abtPrecinct employee goal setting
+ */
+
+/**
+ * Implements hook_user_load().
+ */
+function abtpre_letschat_user_load($users) {
+  foreach($users as $user) {
+    $result = db_select('abtpre_letschat_users_leader','a')
+                ->fields('a')
+                ->condition('uid', $user->uid, '=')
+                ->execute()
+                ->fetchObject();
+    if (!empty($result)) {
+      $user->leader_uid = $result->leader_uid;
+    }
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function abtpre_letschat_theme($existing, $type, $theme, $path) {
+  return array(
+    'abtpre_letschat_admin_tasks' => array(
+      'render element' => 'form'
+    ),
+    'abtpre_letschat_form_org' => array(
+      'render element' => 'form'
+    ),
+    'abtpre_letschat_manage_employees' => array(
+      'render element' => 'form'
+    ),
+  );
+}
+
+/**
+ * Implements hook_perm().
+ */
+function abtpre_letschat_permission() {
+  $perm['letschat admin'] = array(
+    'title' => t("Administer Let's Chat"),
+    'description' => t('Perform administration tasks for Let\'s Chat.'),
+  );
+  return $perm;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function abtpre_letschat_menu() {
+  
+  $items['letschat'] = array(
+    'access callback' => true,
+    'page callback' => 'abtpre_letschat_front',
+    'type' => MENU_CALLBACK
+  );
+
+  $items['letschat/%user'] = array(
+    'title arguments' => array("Welcome"),
+    'title callback' => 'abtpre_letschat_title_user',
+    'access callback' => true,
+    'page callback' => 'abtpre_letschat_welcome',
+    'page arguments' => array(1),
+    'weight' => 5,
+  );
+
+  $items['letschat/%user/my'] = array(
+    'title' => 'My objectives',
+    'access callback' => true,
+    'page callback' => 'abtpre_letschat_welcome',
+    'page arguments' => array(1),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 1,
+  );
+
+  $items['letschat/%user/employees'] = array(
+    'title' => 'Employees',
+    'access callback' => '_abtpre_letschat_has_employees',
+    'page arguments' => array('abtpre_letschat_manage_employees'),
+    'page callback' => 'drupal_get_form',
+    'weight' => 2,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['admin/letschat'] = array(
+    'title' => t("Let's Chat"),
+    'description' => t('Configure let\'s chat. Add categories for objectives and create org chart.'),
+    'access callback' => true,
+    'page callback' => 'system_admin_menu_block_page',
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+
+  $items['admin/letschat/categories'] = array(
+    'title' => t('Objective categories'),
+    'description' => t('Manage objective categories.'),
+    'access callback' => true,
+    'page callback' => 'drupal_goto',
+    'page arguments' => array('admin/structure/taxonomy/category', array('query' => array('destination' => 'admin/letschat'))),
+  );
+
+  $items['admin/letschat/tasks'] = array(
+    'title' => t('Control tasks'),
+    'description' => t('Control what tasks are available to staff. Tasks become relevant at different times of year.'),
+    'access callback' => true,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('abtpre_letschat_admin_tasks'),
+  );
+
+  $items['admin/letschat/org'] = array(
+    'title' => t('Organisational chart'),
+    'description' => t('Manage organisational structure.'),
+    'access callback' => true,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('abtpre_letschat_form_org'),
+  );
+
+  $items['admin/letschat/self'] = array(
+    'title' => t('Self assessment questions'),
+    'description' => t('Manage self assessment questions'),
+    'access callback' => true,
+    'page callback' => 'drupal_goto',
+    'page arguments' => array('admin/structure/types/manage/self-assessment/fields', array('query' => array('destination' => 'admin/letschat')))
+  );
+
+  return $items;
+}
+
+/**
+ * Wildcards
+ */
+function year_load($year) {
+  return $year;
+}
+
+function abtpre_letschat_title($string, $user) {
+  return t($string, array('@name' => $user->name));
+}
+
+function abtpre_letschat_title_user($string) {
+  global $user;
+  if ($user->uid > 0) {
+  return t($string, array('@name' => $user->name));
+  }
+  return $string;
+}
+
+/**
+ * Page callbacks
+ */
+
+function abtpre_letschat_objectives_table($year, $user) {
+  
+  $header = array(
+    t('Category'),
+    t('Objective'),
+    t('Measures'),
+  );
+
+  $output = '';
+  $result = db_select('abtpre_letschat_objectives', 'a')
+    ->fields('a')
+    ->condition('uid', $user->uid, '=')
+    ->condition('year', $year)
+    ->orderby('tid')
+    ->execute();
+
+  while ($record = $result->fetchObject()) {
+    $rows[] = array($record->tid, $record->objective, $record->measures);
+  }
+
+  return array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+  );
+}
+
+/**
+ * Implements hook_form_alter
+ */
+function abtpre_letschat_form_alter(&$form, &$form_state, $form_id) {
+
+  global $user;
+
+  
+  $qs = drupal_get_query_parameters();
+  // Forms to modify fields uid and year
+  $target_forms = array('performance_objectives_node_form', 'development_plan_node_form', 'self_assessment_node_form');
+  
+  if (in_array($form_id, $target_forms)) {
+    // verify that there are correct year id and uid parameters
+    if (empty($qs['yid']) || empty($qs['yid'])) {
+      //drupal_not_found();
+    } else {
+      if (!in_array($qs['yid'], array_keys(_abtpre_letschat_years()))) {
+        //drupal_not_found();
+      }
+      if ($qs['uid'] != 1 && !in_array($qs['uid'], array_keys(_abtpre_letschat_employees()))) {
+        //drupal_not_found();
+      }
+    }
+
+    if (isset($qs['yid'])) {
+      $form['field_yid']['und'][0]['value']['#default_value'] = $qs['yid'];
+    }
+    if (isset($qs['uid'])) {
+      $form['field_person']['und']['#default_value'] = $qs['uid'];
+    }
+
+    if (!variable_get('abtpre_letschat_debug', true)) {
+      $form['field_yid']['#attributes']['style'] = array('display:none');
+      $form['field_person']['#attributes']['style'] = array('display:none');
+    }
+    array_unshift($form['#validate'], 'abtpre_letschat_validate');
+  }
+
+  // Alter comment form
+  if (strpos($form_id, 'comment_node') !== false) {
+    if (isset($qs['purpose'])) {
+      $form['field_purpose']['und']['#default_value'] = $qs['purpose'];
+    }
+    //dsm($form);
+  }
+}
+
+function abtpre_letschat_validate(&$form, &$form_state) {
+  // implement validation here for instance
+}
+
+/**
+ * Views
+ */
+
+function abtpre_letschat_manage_employees($form, &$form_state) {
+  $form['employees'] = array('#tree' => true);
+  $types = array('performance_objectives', 'development_plan', 'self_assessment');
+  $purposes = array('view', 'progress', 'annual');
+
+  $form['feedback'] = array(
+    '#prefix' => '<div id="feedback-div">',
+    '#suffix' => '</div>',
+  );
+
+  foreach (_abtpre_letschat_years() as $yid => $year) {
+    foreach (_abtpre_letschat_employees() as $uid => $name) {
+      foreach ($purposes as $purpose) {
+        foreach ($types as $type) {
+          if ($type == 'self_assessment' && ($purpose == 'view' || $purpose == 'progress')) {
+            break; 
+          }
+          $form['employees'][$yid][$uid][$purpose][$type] = array(
+            '#type' => 'checkbox',
+            '#title' => t('approved'),
+            '#ajax' => array(
+              'callback' => 'abtpre_letschat_checked_callback',
+              'wrapper' => 'feedback-div',
+              'method' => 'replace',
+              'effect' => 'fade',
+            ),
+          );
+        }
+      }
+      $form['employees'][$yid][$uid]['rating'] = array(
+        '#type' => 'select',
+        '#title' => t('Performance rating'),
+        '#title_display' => 'invisible',
+        '#options' => array('U','DP','SP','EP','DM'),
+        '#ajax' => array(
+          'callback' => 'abtpre_letschat_checked_callback',
+          'wrapper' => 'feedback-div',
+          'method' => 'replace',
+          'effect' => 'fade',
+        ),
+      );
+    }
+  }
+  return $form;
+}
+
+function theme_abtpre_letschat_manage_employees($variables) {
+
+  $form =& $variables['form'];
+
+  $years = _abtpre_letschat_years();
+  $employees = _abtpre_letschat_employees();
+
+  foreach (element_children($form['employees']) as $yid) {
+    $row[] = array('header' => 1, 'data' => $years[$yid], 'colspan' => 9); 
+    $rows[] = $row;
+    unset($row); 
+
+    $row[] = array('data' => 'Employee', 'header' => 1);
+    $row[] = array('header' => 1, 'data' => 'Set objectives', 'colspan' => 2); 
+    $row[] = array('header' => 1, 'data' => 'Half yearly progress review', 'colspan' => 2); 
+    $row[] = array('header' => 1, 'data' => 'Annual review', 'colspan' => 3); 
+    $row[] = array('header' => 1, 'data' => 'Performance rating', 'colspan' => 1); 
+    $rows[] = $row;
+    unset($row); 
+  
+
+    foreach (element_children($form['employees'][$yid]) as $uid) {
+      $row[] = array('rowspan' => 1, 'data' => $employees[$uid]);
+
+      foreach (element_children($form['employees'][$yid][$uid]) as $purpose) {
+        if ($purpose == 'rating') {
+          $row[] = drupal_render($form['employees'][$yid][$uid][$purpose]);
+        } else { 
+          foreach (element_children($form['employees'][$yid][$uid][$purpose]) as $type) {
+            $row[] = _abtpre_letschat_leader_action($yid, $uid, $type, $purpose). drupal_render($form['employees'][$yid][$uid][$purpose][$type]);
+          }
+        }
+      }
+
+      $rows[] = array('data' => $row);
+      unset($row);
+    }
+  }
+  $output = drupal_render($form['feedback']);
+  $output .= theme('table', array('rows' => $rows));
+  $output .= drupal_render_children($form);
+  return $output;
+
+}
+
+function abtpre_letschat_front() {
+  global $user;
+  if ($user->uid == 0) {
+    drupal_goto('user/login', array('query' => array('destination' => '/')));
+  }
+  drupal_goto('letschat/'.$user->uid);
+}
+
+function abtpre_letschat_create() {
+  return '';
+}
+
+function abtpre_letschat_objectives_view() {
+  return '';
+}
+/**
+ * Forms
+ */
+function abtpre_letschat_admin_tasks($form, &$form_state) {
+  
+
+  $form['tasks'] = array(
+    '#tree' => true,
+  );
+
+  foreach (_abtpre_letschat_years() as $key => $val) {
+
+    $form['tasks'][$key]['year'] = array(
+      '#markup' => $val
+    );
+
+    $form['tasks'][$key]['set_targets'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Set objectives'),
+      '#title_display' => 'attribute',
+      '#default_value' => variable_get('set_targets_'.$key,''),
+    );
+
+    $form['tasks'][$key]['progress'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Progress review'),
+      '#title_display' => 'attribute',
+      '#default_value' => variable_get('progress_'.$key,''),
+    );
+
+    $form['tasks'][$key]['annual'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Annual review'),
+      '#title_display' => 'attribute',
+      '#default_value' => variable_get('annual_'.$key,''),
+    );
+  }
+
+  $form['save'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  $form['cancel'] = array(
+    '#type' => 'submit',
+    '#value' => t('Cancel'),
+  );
+
+  return $form;
+}
+
+function abtpre_letschat_admin_tasks_submit($form, &$form_state) {
+  if ($form_state['clicked_button']['#id'] == 'edit-cancel') {
+    return;
+  }
+
+  foreach ($form_state['values']['tasks'] as $year => $tasks) {
+    foreach ($tasks as $task => $value) {
+      variable_set($task.'_'.$year, $value);
+    }
+  }
+}
+
+function abtpre_letschat_form_objectives($form, &$form_state) {
+  $form = array();
+
+
+  $form['add'] = array(
+    '#type' => 'button',
+    '#value' => t('Add objective'),
+    '#validate' => array('abtpre_letschat_addobjective'),
+  );
+
+  $form['objectives'] = array(
+    '#tree' => true,
+  );
+
+  $form['objectives'][1]['category'] = array(
+    '#type' => 'select',
+    '#title' => t('Category'),
+    '#options' => _abtpre_letschat_categories(),
+  );
+  
+  $form['objectives'][1]['objective'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Objective'),
+  );
+
+  $form['objectives'][1]['measures'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Measures'),
+  );
+
+  $form['save'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save objectives'),
+  );
+
+  $form['cancel'] = array(
+    '#type' => 'submit',
+    '#value' => t('Cancel'),
+  );
+
+  $form['#uid'] = arg(1);
+
+  return $form;
+}
+
+function abtpre_letschat_addobjective(&$form, &$form_state) {
+  $form['#objectives']++;
+}
+
+function abtpre_letschat_form_objectives_validate($form, &$form_state) {
+}
+
+function abtpre_letschat_form_objectives_submit($form, &$form_state) {
+  $data = array(
+    'year' => $form_state['values']['year'],
+    'uid' => $form['#uid'],
+    'tid' => $form_state['values']['category'],
+    'weight' => 0,
+  );
+
+  foreach ($form_state['values']['objectives'] as $objective) {
+    $data['objective'] = $objective['objective'];
+    $data['measures'] = $objective['measures'];
+    db_insert('abtpre_letschat_objectives')
+      ->fields($data)
+      ->execute();
+  }
+}
+
+function abtpre_letschat_welcome($user = null) {
+
+  if (empty($user)) {
+    global $user;
+  }
+  $output = 'Use this tool to write, review and edit preformance objectives, development plans and self assessments for you and your team.';
+
+
+  foreach (_abtpre_letschat_years() as $yid => $year) {
+
+    if (variable_get('set_targets_'.$yid, '')
+      || variable_get('progress_'.$yid, '') 
+      || variable_get('annual_'.$yid, '') 
+    ) {
+      $rows[] = array(
+        array('header' => true, 'data' => $year, 'colspan' => 3)
+      );
+
+
+        // Check if user already completed set targets.
+        $query = new EntityFieldQuery();
+        $result = $query
+          ->entityCondition('entity_type', 'node')
+          ->entityCondition('bundle', array('performance_objectives','development_plan', 'self_assessment'))
+          ->fieldCondition('field_person', 'uid', $user->uid)
+          ->fieldCondition('field_yid', 'value', $yid)
+          ->execute();
+
+        $year_plans = array();
+
+        if (!empty($result)) {
+          foreach (entity_load('node', array_keys($result['node'])) as $plan) {
+            $year_plans[$plan->type] = $plan;
+          }
+        }
+
+      if (variable_get('set_targets_'.$yid)) {
+        $row[] = 'Set objectives';
+        $row[] = (isset($year_plans) && isset($year_plans['performance_objectives']))
+          ? l('View performance objectives', 'node/'.$year_plans['performance_objectives']->nid, array('query' => array('yid' => $yid, 'uid' => $user->uid, 'destination' => current_path()), 'attributes' => array('style' => array('color:green'))))
+          : l('Create performance objectives','node/add/performance-objectives', array('query' => array('yid' => $yid, 'uid' => $user->uid, 'destination' => current_path())));
+
+        $row[] = (isset($year_plans) && isset($year_plans['development_plan']))
+          ? l('View development plan', 'node/'.$year_plans['development_plan']->nid, array('query' => array('yid' => $yid, 'uid' => $user->uid, 'destination' => current_path()), 'attributes' => array('style' => array('color:green'))))
+          : l('Create development plan', 'node/add/development-plan', array('query' => array('yid' => $yid, 'uid' => $user->uid, 'destination' => current_path())));
+
+        $rows[] = $row;
+        unset($row);
+      }
+
+      if (variable_get('progress_'.$yid)) {
+        $rows[] = array(
+          array('data' => 'Half yearly progress'),
+          array('data' => _abtpre_letschat_review_action($year_plans, 'performance_objectives', 'progress')),
+          array('data' => _abtpre_letschat_review_action($year_plans, 'development_plan', 'progress'))
+        );
+      }
+      if (variable_get('annual_'.$yid)) {
+        $rows[] = array(
+          array('data' => 'Annual review', 'rowspan' => 3),
+          array('data' => _abtpre_letschat_review_action($year_plans, 'performance_objectives', 'annual')),
+          array('data' => _abtpre_letschat_review_action($year_plans, 'development_plan', 'annual'))
+        );
+
+      
+        $query = new EntityFieldQuery();
+        $result = $query
+          ->entityCondition('entity_type', 'node')
+          ->entityCondition('bundle', 'self_assessment')
+          ->fieldCondition('field_person', 'uid', $user->uid)
+          ->fieldCondition('field_yid', 'value', $yid)
+          ->execute();
+        if (!empty($result)) {
+          foreach ($result['node'] as $node) { 
+            $data = l('View self assessment', 'node/'.$node->nid, array('attributes' => array('style' => array('color:green'))));
+          }
+        } else {
+            $data = l('Do self assessment', 'node/add/self-assessment', array('query' => array('yid' => $yid, 'uid' => $user->uid, 'destination' => current_path())));
+        }
+
+        $rows[] = array(
+          array(
+            'colspan' => 2,
+            'data' => $data,
+          )
+        );
+
+        $rows[] = array(
+          array(
+            'colspan' => 2,
+            'data' => _abtpre_letschat_review_action($year_plans, 'self_assessment', 'annual'),
+          )
+        );
+
+      }
+    }
+  }
+  
+  $output .= theme('table', array('rows' => $rows));
+  return $output;
+}
+
+function abtpre_letschat_cancel() {
+  drupal_goto('');
+}
+
+function abtpre_letschat_form_self_validate($form, &$form_state) {
+
+  foreach ($form_state['values'] as $key => $value) {
+    if (substr($key,0,1) == 'q') {
+      $data[$key] = $value;
+    } 
+  }
+
+  db_merge('abtpre_letschat_self')
+    ->key(array('year' => arg(1), 'uid' => arg(2)))
+    ->fields($data)
+    ->execute();
+}
+
+function abtpre_letschat_plan() {
+  //return drupal_render(drupal_get_form('abtpre_letschat_form_plan'));
+  return '';
+}
+
+function abtpre_letschat_form_plan($form, &$form_state) {
+  
+  $plan = db_select('abtpre_letschat_plan', 'a')
+    ->fields('a')
+    ->condition('year', arg(1))
+    ->condition('uid', arg(2))
+    ->execute()
+    ->fetchObject();
+
+  $form[1] = array(
+    '#type' => 'fieldset',
+    '#title' => t('12 Months'),
+    '#tree' => true,
+  );
+
+  $form[1]['goals'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Career goals'),
+    '#default_value' => !empty($plan)?$plan->goals_1:'',
+  );
+
+  $form[1]['actions'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Actions to be taken'),
+    '#default_value' => !empty($plan)?$plan->actions_1:'',
+  );
+
+  $form[2] = array(
+    '#tree' => true,
+    '#type' => 'fieldset',
+    '#title' => t('2 Years'),
+  );
+
+  $form[2]['goals'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Career goals'),
+    '#default_value' => !empty($plan)?$plan->goals_2:'',
+  );
+
+  $form[2]['actions'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Actions to be taken'),
+    '#default_value' => !empty($plan)?$plan->actions_2:'',
+  );
+
+  $form['save'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+
+  $form['cancel'] = array(
+    '#type' => 'submit',
+    '#value' => t('Cancel'),
+    '#validate' => array('abtpre_letschat_cancel'),
+  );
+
+  return $form;
+}
+
+function abtpre_letschat_form_plan_submit($form, &$form_state) {
+  $data =  array(
+      'year' => arg(1),
+      'uid' => arg(2),
+      'goals_1' => $form_state['values'][1]['goals'],
+      'actions_1' => $form_state['values'][1]['actions'],
+      'goals_2' => $form_state['values'][2]['goals'],
+      'actions_2' => $form_state['values'][2]['actions'],
+  );
+  db_merge('abtpre_letschat_plan')
+    ->key(array('year' => arg(1), 'uid' => arg(2)))
+    ->fields($data)
+    ->execute();
+}
+
+function abtpre_letschat_form_questions($form, &$form_state) {
+  $form = array();
+
+  $form['create'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Create self assessment question:'),
+  );
+
+  $form['save'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save question'),
+  );
+  
+  return $form;
+}
+
+function abtpre_letschat_form_org($form, &$form_state) {
+  $query = db_select('users');
+  $query->addField('users', 'uid');
+  $results = $query->execute();
+  $uids = array();
+  while($record = $results->fetchObject()) {
+    $uids[] = $record->uid;
+  }
+  $accounts = user_load_multiple($uids);
+}
+
+/** 
+ * Theme functions
+ */
+function theme_abtpre_letschat_admin_tasks($variables) {
+  $form =& $variables['form'];
+
+  $header = array(
+    t('Performance year'),
+    t('Set targets'),
+    t('Progress review'),
+    t('Annual review'),
+  );
+
+  foreach (element_children($form['tasks']) as $year) {
+    $rows[] = array(
+      drupal_render($form['tasks'][$year]['year']),
+      drupal_render($form['tasks'][$year]['set_targets']),
+      drupal_render($form['tasks'][$year]['progress']),
+      drupal_render($form['tasks'][$year]['annual']),
+    );
+  }
+  $output = theme('table', array('header' => $header, 'rows' => $rows));
+  $output .= drupal_render_children($form);
+  return $output;
+}
+/**
+ * Helpers
+ */
+
+function _abtpre_letschat_categories() {
+  // Hardcode vocabulary id 2 which is Category.
+  $terms = taxonomy_get_tree(2);
+  foreach ($terms as $term) {
+    $cats[$term->tid] = $term->name;
+  }
+  return $cats;
+}
+
+function _abtpre_letschat_years() {
+  $curyear = date('Y');
+
+  for ($i=2010; $i < $curyear + 1; $i++) {
+    $years[$i.($i+1)] = $i . ' – ' . ($i + 1);
+  }
+   
+  return $years;
+}
+
+/**
+ * Returns current performance year
+ * in format 20112012
+ */
+function _abtpre_letschat_curyear() {
+  $curyear = date('Y');
+
+  // the data in form month day
+  // Oct 1 is 1001
+  if (date('nd') >= '1001') {
+    return $curyear.($curyear+1);
+  }
+  else {
+    return ($curyear-1).$curyear;
+  }
+}
+
+function _abtpre_letschat_employees() {
+  global $user;
+  $results = db_select('abtpre_letschat_users_leader','a')
+            ->fields('a')
+            ->condition('leader_uid', $user->uid, '=')
+            ->execute();
+  $uids = array();
+  while ($record = $results->fetchObject()) {
+    $uids[] = $record->uid;
+  }
+  $accounts = user_load_multiple($uids);
+  
+  $people = array();
+  // Add self to list of people
+  //$people[$user->uid] = $user->name;
+  foreach ($accounts as $account) {
+    $people[$account->uid] = $account->name;
+  }
+  return $people;
+}
+
+function _abtpre_letschat_review_action($nodes, $type, $purpose) {
+  
+  if (!isset($nodes[$type])) {
+    return t('Create @type before doing @purpose review',array('@type' => $type, '@purpose' => $purpose));
+  }
+
+  $query = new EntityFieldQuery();
+  $result = $query
+    ->entityCondition('entity_type', 'comment')
+    ->fieldCondition('field_purpose', 'value', $purpose)
+    ->propertyCondition('nid', $nodes[$type]->nid)
+    ->execute();
+
+  if (!empty($result)) {
+    $cid = array_pop(array_keys($result['comment']));
+    return l('View review', 'comment/'.$cid, array('attributes' => array('style' => 'color:green'), 'query' => array('purpose' => $purpose, 'destination' => '/')));
+  }
+  else {
+    return l('Do review', 'comment/reply/'.$nodes[$type]->nid, array('query' => array('purpose' => $purpose, 'destination' => '/')));
+  }
+}
+
+function _abtpre_letschat_has_employees() {
+  
+  if (count(_abtpre_letschat_employees()) > 0) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+function _abtpre_letschat_employee_node($yid, $uid, $type) {
+
+    $query = new EntityFieldQuery();
+    $result = $query
+      ->entityCondition('entity_type', 'node')
+      ->entityCondition('bundle', $type)
+      ->fieldCondition('field_person', 'uid', $uid)
+      ->fieldCondition('field_yid', 'value', $yid)
+      ->execute();
+    
+    if (!empty($result)) {
+      $nid = array_pop(array_keys($result['node']));  
+      return $nid;
+    } else {
+      return false;
+    }
+}
+
+function _abtpre_letschat_leader_action($yid, $uid, $type, $purpose) {
+  
+    if ($nid = _abtpre_letschat_employee_node($yid, $uid, $type)) {
+
+      if ($purpose == 'view') {
+        return l(str_replace('_', ' ',$type), "node/$nid");
+      }
+      elseif ($purpose == 'progress' || $purpose == 'annual' || 'self_assessment') {
+        return l(str_replace('_', ' ',$type), "comment/reply/$nid", array('query' => array('purpose' => $purpose)));
+      }
+    }
+  
+  return str_replace('_', ' ',$type);
+
+  return ;
+  if (!isset($nodes[$type])) {
+    return t('Create @type before doing @purpose review',array('@type' => $type, '@purpose' => $purpose));
+  }
+
+  $query = new EntityFieldQuery();
+  $result = $query
+    ->entityCondition('entity_type', 'comment')
+    ->fieldCondition('field_purpose', 'value', $purpose)
+    ->propertyCondition('nid', $nodes[$type]->nid)
+    ->execute();
+
+  if (!empty($result)) {
+    $cid = array_pop(array_keys($result['comment']));
+    return l('View review', 'comment/'.$cid, array('attributes' => array('style' => 'color:green'), 'query' => array('purpose' => $purpose, 'destination' => '/')));
+  }
+  else {
+    return l('Do review', 'comment/reply/'.$nodes[$type]->nid, array('query' => array('purpose' => $purpose, 'destination' => '/')));
+  }
+}
+
+/*
+ * callback
+ */
+function abtpre_letschat_checked_callback($form, $form_state) {
+
+  $output = '';
+  foreach (element_children($form_state['values']['employees']) as $yid) { 
+    foreach (element_children($form_state['values']['employees'][$yid]) as $uid) { 
+      foreach (element_children($form_state['values']['employees'][$yid][$uid]) as $purpose) { 
+        if ($purpose == 'rating') {
+          $rating = array('yid' => $yid, 'uid' => $uid, 'rating' => $form_state['values']['employees'][$yid][$uid]['rating']);
+          db_merge('abtpre_letschat_rating')
+            ->key(array('uid' => $uid, 'yid' => $yid))
+            ->fields($rating)
+            ->execute();
+          $output .= print_r($rating, 1)."<br />";
+        } else {
+          foreach (element_children($form_state['values']['employees'][$yid][$uid][$purpose]) as $type) { 
+
+            $nid = _abtpre_letschat_employee_node($yid, $uid, $type);
+
+            if ($nid) {
+            $approved = array('nid' => $nid, 'purpose' => $purpose, 'approved' => $form_state['values']['employees'][$yid][$uid][$purpose][$type]);
+            db_merge('abtpre_letschat_approved')
+              ->key(array('nid' => $nid, 'purpose' => $purpose))
+              ->fields($approved)
+              ->execute();
+            $output .= print_r($approved, 1). "<br />";
+            }
+          }
+        }
+      }  
+    }
+  }
+  return '<div id="feedback-div">'.$output.'</div>';
+}
+

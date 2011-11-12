@@ -212,7 +212,7 @@ function abtpre_letschat_form_alter(&$form, &$form_state, $form_id) {
       $form['field_person']['und']['#default_value'] = $qs['uid'];
     }
 
-    if (!variable_get('abtpre_letschat_debug', true)) {
+    if (!variable_get('abtpre_letschat_debug', false)) {
       $form['field_yid']['#attributes']['style'] = array('display:none');
       $form['field_person']['#attributes']['style'] = array('display:none');
     }

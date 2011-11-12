@@ -10,7 +10,12 @@
  */
 function abtpre_letschat_node_view_alter(&$build) {
   unset($build['links']['comment']);
+  dsm($build);
+  foreach (element_children($build['comments']['comments']) as $number) {if (is_numeric($number)) {
+    unset($build['comments']['comments'][$number]['links']['comment']['#links']['comment-reply']);
+  }}
 }
+
 /**
  * Implements hook_user_load().
  */
@@ -193,6 +198,11 @@ function abtpre_letschat_objectives_table($year, $user) {
 function abtpre_letschat_form_alter(&$form, &$form_state, $form_id) {
 
   global $user;
+
+
+  if (strpos($form_id, 'comment_node') !== false) {
+    $form['field_purpose']['#type'] = 'hidden'; 
+  }
 
   $qs = drupal_get_query_parameters();
   // Forms to modify fields uid and year

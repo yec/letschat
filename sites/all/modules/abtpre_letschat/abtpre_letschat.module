@@ -74,8 +74,8 @@ function abtpre_letschat_menu() {
   );
 
   $items['letschat/%user'] = array(
-    'title arguments' => array("Welcome"),
-    'title callback' => 'abtpre_letschat_title_user',
+    //'title arguments' => array("Welcome"),
+    //'title callback' => 'abtpre_letschat_title_user',
     'access callback' => true,
     'page callback' => 'abtpre_letschat_welcome',
     'page arguments' => array(1),
@@ -342,7 +342,7 @@ function theme_abtpre_letschat_manage_employees($variables) {
   
 
     foreach (element_children($form['employees'][$yid]) as $uid) {
-      $row[] = array('rowspan' => 1, 'data' => $employees[$uid]);
+      $row[] = array('rowspan' => 1, 'data' => $employees[$uid].' '. l('print', "letschat/$uid/print", array('attributes' => array('target'=> '_blank'),'query'=>array('yid'=>$yid))));
 
       foreach (element_children($form['employees'][$yid][$uid]) as $purpose) {
         if ($purpose == 'rating') {
@@ -526,7 +526,7 @@ function abtpre_letschat_welcome($user = null) {
       || variable_get('annual_'.$yid, '') 
     ) {
       $rows[] = array(
-        array('header' => true, 'data' => $year.'<div style="float:right">'.l('Print',"letschat/$user->uid/print",array('query' => array('yid' => $yid))).'</div>', 'colspan' => 3)
+        array('header' => true, 'data' => $year.'<div style="float:right">'.l('print', "letschat/$user->uid/print", array('attributes' => array('target'=> '_blank'),'query'=>array('yid'=>$yid))).'</div>', 'colspan' => 3)
       );
 
 
@@ -824,6 +824,7 @@ function _abtpre_letschat_employees() {
 }
 
 function _abtpre_letschat_review_action($nodes, $type, $purpose) {
+  global $user;
   
   if (!isset($nodes[$type])) {
     return t('Create @type before doing @purpose review',array('@type' => $type, '@purpose' => $purpose));
@@ -834,6 +835,7 @@ function _abtpre_letschat_review_action($nodes, $type, $purpose) {
     ->entityCondition('entity_type', 'comment')
     ->fieldCondition('field_purpose', 'value', $purpose)
     ->propertyCondition('nid', $nodes[$type]->nid)
+    ->propertyCondition('uid', $user->uid)
     ->execute();
 
   if (!empty($result)) {
@@ -873,38 +875,41 @@ function _abtpre_letschat_employee_node($yid, $uid, $type) {
 }
 
 function _abtpre_letschat_leader_action($yid, $uid, $type, $purpose) {
+    global $user;
+    $destination = drupal_get_destination();
   
     if ($nid = _abtpre_letschat_employee_node($yid, $uid, $type)) {
 
       if ($purpose == 'view') {
-        return l(str_replace('_', ' ',$type), "node/$nid");
+        return l(str_replace('_', ' ',$type), "node/$nid", array('attributes'=>array('style'=>'color:green')));
       }
-      elseif ($purpose == 'progress' || $purpose == 'annual' || 'self_assessment') {
-        return l(str_replace('_', ' ',$type), "comment/reply/$nid", array('query' => array('purpose' => $purpose)));
+      elseif ($purpose == 'progress' || $purpose == 'annual') {
+
+        $query = new EntityFieldQuery();
+        $result = $query
+          ->entityCondition('entity_type', 'comment')
+          ->propertyCondition('nid', $nid)
+          ->propertyCondition('uid', $user->uid)
+          ->fieldCondition('field_purpose', 'value', $purpose)
+          ->execute();
+
+        if (!empty($result)) {
+          $cid = array_pop(array_keys($result['comment']));
+          return l('view comment', "comment/$cid", array('attributes'=>array('style'=>'color:green'),'query' => array('purpose' => $purpose)));
+        }
+        else {
+          return l('write comment', "comment/reply/$nid", array('query' => array('destination' => $destination['destination'],'purpose' => $purpose)));
+        }
       }
     }
+
+  if ($purpose == 'view'|| ($purpose == 'annual' && $type == 'self_assessment')) {
+    return l(str_replace('_', ' ','create '.$type)
+      , "node/add/".str_replace('_', '-',$type)
+      , array('query'=>array('destination' => $destination['destination'],'yid' => $yid,'uid'=>$uid)));
+  }
   
   return str_replace('_', ' ',$type);
-
-  return ;
-  if (!isset($nodes[$type])) {
-    return t('Create @type before doing @purpose review',array('@type' => $type, '@purpose' => $purpose));
-  }
-
-  $query = new EntityFieldQuery();
-  $result = $query
-    ->entityCondition('entity_type', 'comment')
-    ->fieldCondition('field_purpose', 'value', $purpose)
-    ->propertyCondition('nid', $nodes[$type]->nid)
-    ->execute();
-
-  if (!empty($result)) {
-    $cid = array_pop(array_keys($result['comment']));
-    return l('View review', 'comment/'.$cid, array('attributes' => array('style' => 'color:green'), 'query' => array('purpose' => $purpose, 'destination' => '/')));
-  }
-  else {
-    return l('Do review', 'comment/reply/'.$nodes[$type]->nid, array('query' => array('purpose' => $purpose, 'destination' => '/')));
-  }
 }
 
 /*

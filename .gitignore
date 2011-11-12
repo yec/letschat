@@ -6,3 +6,4 @@ sites/*/settings*.php
 sites/*/private
 
 *.swp
+dump.sh

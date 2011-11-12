@@ -100,6 +100,15 @@ function abtpre_letschat_menu() {
     'type' => MENU_LOCAL_TASK,
   );
 
+  $items['letschat/%user/print/%yid'] = array(
+    'title' => 'Print Let\'s Chat Agreement',
+    'access callback' => true,
+    'page arguments' => array(1),
+    'page callback' => 'abtpre_letschat_print',
+    'file' => 'abtpre_letschat.print.inc',
+    'type' => MENU_CALLBACK,
+  );
+
   $items['admin/letschat'] = array(
     'title' => t("Let's Chat"),
     'description' => t('Configure let\'s chat. Add categories for objectives and create org chart.'),

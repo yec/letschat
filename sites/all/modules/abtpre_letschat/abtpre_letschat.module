@@ -24,10 +24,10 @@ function abtpre_letschat_node_view_alter(&$build) {
 function abtpre_letschat_user_load($users) {
   foreach($users as $user) {
     $result = db_select('abtpre_letschat_users_leader','a')
-                ->fields('a')
-                ->condition('uid', $user->uid, '=')
-                ->execute()
-                ->fetchObject();
+      ->fields('a')
+      ->condition('uid', $user->uid, '=')
+      ->execute()
+      ->fetchObject();
     if (!empty($result)) {
       $user->leader_uid = $result->leader_uid;
     }
@@ -100,13 +100,13 @@ function abtpre_letschat_menu() {
     'type' => MENU_LOCAL_TASK,
   );
 
-  $items['letschat/%user/print/%yid'] = array(
-    'title' => 'Print Let\'s Chat Agreement',
+  $items['letschat/%user/print'] = array(
+    'title' => 'Let\'s Chat Agreement',
     'access callback' => true,
     'page arguments' => array(1),
     'page callback' => 'abtpre_letschat_print',
-    'file' => 'abtpre_letschat.print.inc',
     'type' => MENU_CALLBACK,
+    'file' => 'abtpre_letschat.print.inc',
   );
 
   $items['admin/letschat'] = array(
@@ -525,7 +525,7 @@ function abtpre_letschat_welcome($user = null) {
       || variable_get('annual_'.$yid, '') 
     ) {
       $rows[] = array(
-        array('header' => true, 'data' => $year, 'colspan' => 3)
+        array('header' => true, 'data' => $year.'<div style="float:right">'.l('Print',"letschat/$user->uid/print",array('query' => array('yid' => $yid))).'</div>', 'colspan' => 3)
       );
 
 

@@ -254,16 +254,23 @@ function abtpre_letschat_manage_employees($form, &$form_state) {
           if ($type == 'self_assessment' && ($purpose == 'view' || $purpose == 'progress')) {
             break; 
           }
+          $nid = _abtpre_letschat_employee_node($yid, $uid, $type);
           $form['employees'][$yid][$uid][$purpose][$type] = array(
             '#type' => 'checkbox',
             '#title' => t('approved'),
             '#ajax' => array(
+              'progress' => array('message' => '', 'type' => 'throbber'),
               'callback' => 'abtpre_letschat_checked_callback',
               'wrapper' => 'feedback-div',
               'method' => 'replace',
               'effect' => 'fade',
             ),
           );
+          if ($nid == false) {
+            $form['employees'][$yid][$uid][$purpose][$type]['#type'] = 'hidden';
+          } else {
+            $form['employees'][$yid][$uid][$purpose][$type]['#default_value'] = _abtpre_letschat_approved($nid, $purpose);
+          }
         }
       }
       $form['employees'][$yid][$uid]['rating'] = array(
@@ -271,7 +278,9 @@ function abtpre_letschat_manage_employees($form, &$form_state) {
         '#title' => t('Performance rating'),
         '#title_display' => 'invisible',
         '#options' => array('U','DP','SP','EP','DM'),
+        '#default_value' => _abtpre_letschat_rating($yid, $uid),
         '#ajax' => array(
+          'progress' => array('message' => '', 'type' => 'throbber'),
           'callback' => 'abtpre_letschat_checked_callback',
           'wrapper' => 'feedback-div',
           'method' => 'replace',
@@ -293,7 +302,7 @@ function theme_abtpre_letschat_manage_employees($variables) {
   foreach (element_children($form['employees']) as $yid) {
     $row[] = array('header' => 1, 'data' => $years[$yid], 'colspan' => 9); 
     $rows[] = $row;
-    unset($row); 
+    unset($row);
 
     $row[] = array('data' => 'Employee', 'header' => 1);
     $row[] = array('header' => 1, 'data' => 'Set objectives', 'colspan' => 2); 
@@ -904,6 +913,32 @@ function abtpre_letschat_checked_callback($form, $form_state) {
       }  
     }
   }
-  return '<div id="feedback-div">'.$output.'</div>';
 }
 
+function _abtpre_letschat_approved($nid, $purpose) {
+  $record = db_select('abtpre_letschat_approved', 'a')
+    ->fields('a')
+    ->condition('nid', $nid)
+    ->condition('purpose', $purpose)
+    ->execute()
+    ->fetchObject();
+  if (!empty($record)) {
+    return $record->approved;
+  } else {
+    return false;
+  }
+}
+
+function _abtpre_letschat_rating($yid, $uid) {
+  $record = db_select('abtpre_letschat_rating', 'a')
+    ->fields('a')
+    ->condition('yid', $yid)
+    ->condition('uid', $uid)
+    ->execute()
+    ->fetchObject();
+  if (!empty($record)) {
+    return $record->rating;
+  } else {
+    return false;
+  }
+}

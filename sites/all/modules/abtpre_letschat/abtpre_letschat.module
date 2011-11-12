@@ -6,6 +6,12 @@
  */
 
 /**
+ * Implements hook_node_view_alter()
+ */
+function abtpre_letschat_node_view_alter(&$build) {
+  unset($build['links']['comment']);
+}
+/**
  * Implements hook_user_load().
  */
 function abtpre_letschat_user_load($users) {

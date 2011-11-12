@@ -70,9 +70,6 @@
       <p class="comment-time">
         <?php print $created; ?>
       </p>
-      <p class="comment-permalink">
-        <?php print $permalink; ?>
-      </p>
     </div>
   </div>
 
@@ -82,10 +79,6 @@
     <?php if ($new): ?>
       <span class="new"><?php print $new; ?></span>
     <?php endif; ?>
-
-    <?php print render($title_prefix); ?>
-    <h3<?php print $title_attributes; ?>><?php print $title; ?></h3>
-    <?php print render($title_suffix); ?>
 
     <div class="content"<?php print $content_attributes; ?>>
       <?php

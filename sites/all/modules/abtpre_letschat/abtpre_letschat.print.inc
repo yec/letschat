@@ -37,7 +37,9 @@ function abtpre_letschat_print($user) {
     $output[] =  node_view($node);
     $output[] = _abtpre_letschat_node_comments($node);
   }
-  $output[] = array('#markup' => t('Overall rating: ')._abtpre_letschat_variable(_abtpre_letschat_rating($yid, $user->uid)));
+  if ($rating = _abtpre_letschat_rating($yid, $user->uid)) {
+    $output[] = array('#markup' => t('Overall rating: @rating', array('@rating' => _abtpre_letschat_variable($rating))));
+  }
   return $output;
 }
 

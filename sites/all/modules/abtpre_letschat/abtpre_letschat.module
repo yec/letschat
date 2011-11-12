@@ -63,6 +63,17 @@ function abtpre_letschat_permission() {
 }
 
 /**
+ * Implements hook_menu_alter()
+ */
+function abtpre_letschat_menu_alter(&$items) {
+
+  $items['node/%node/edit']['access callback'] = 'abtpre_letschat_authorization';
+  $items['node/%node/edit']['access arguments'] = array(1,'edit');
+  $items['node/%node/view']['access callback'] = 'abtpre_letschat_authorization';
+  $items['node/%node/view']['access arguments'] = array(1,'view');
+}
+
+/**
  * Implements hook_menu().
  */
 function abtpre_letschat_menu() {
@@ -895,7 +906,11 @@ function _abtpre_letschat_leader_action($yid, $uid, $type, $purpose) {
 
         if (!empty($result)) {
           $cid = array_pop(array_keys($result['comment']));
-          return l('view comment', "comment/$cid", array('attributes'=>array('style'=>'color:green'),'query' => array('purpose' => $purpose)));
+          if ($type == 'self_assessment') {
+            return l('self assessment', "comment/$cid", array('attributes'=>array('style'=>'color:green'),'query' => array('purpose' => $purpose)));
+          } else {
+            return l('view comment', "comment/$cid", array('attributes'=>array('style'=>'color:green'),'query' => array('purpose' => $purpose)));
+          }
         }
         else {
           return l('write comment', "comment/reply/$nid", array('query' => array('destination' => $destination['destination'],'purpose' => $purpose)));
@@ -973,5 +988,24 @@ function _abtpre_letschat_rating($yid, $uid) {
     return $record->rating;
   } else {
     return false;
+  }
+}
+
+function abtpre_letschat_authorization($node, $action) {
+  //dsm($node['field_person']);
+  global $user;
+  $uid = $node->field_person['und'][0]['uid'];
+  $employees = _abtpre_letschat_employees();
+
+  if ($user->uid == $uid || isset($employees[$uid])) {
+    if ($action == 'view') {
+      return true;
+    } else {
+      if ($node->type == 'self_assessment') {
+        return !_abtpre_letschat_approved($node->nid,'annual');      
+      } else {
+        return !_abtpre_letschat_approved($node->nid,'view');      
+      }
+    }
   }
 }

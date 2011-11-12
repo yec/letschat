@@ -1208,7 +1208,7 @@ function theme_lt_password_description($variables) {
   switch ($variables['form_id']) {
     case 'user_login':
       // The password field's description on the /user/login page.
-      return t('The password field is case sensitive.');
+      return t('Enter your Let\'s Chat password.');
       break;
 
     case 'user_login_block':

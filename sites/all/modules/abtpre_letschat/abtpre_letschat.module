@@ -187,11 +187,7 @@ function abtpre_letschat_objectives_table($year, $user) {
 function abtpre_letschat_form_alter(&$form, &$form_state, $form_id) {
 
   global $user;
-  
-  if ($form_id == 'user_profile_form') {
-    print_r(element_children($form));
-  }
-  
+
   $qs = drupal_get_query_parameters();
   // Forms to modify fields uid and year
   $target_forms = array('performance_objectives_node_form', 'development_plan_node_form', 'self_assessment_node_form');

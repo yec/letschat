@@ -112,10 +112,10 @@ body,
 #footer-wrapper,
 #skip-link,
 ul.contextual-links,
-ul.links,
+/*ul.links,*/
 ul.primary,
 .item-list .pager,
-div.field-type-taxonomy-term-reference,
+/*div.field-type-taxonomy-term-reference,*/
 div.messages,
 div.meta,
 p.comment-time,
@@ -294,7 +294,7 @@ ul.tips {
 }
 #logo {
   float: left; /* LTR */
-  padding: 15px 15px 15px 10px; /* LTR */
+  padding: 0px 15px 15px 10px; /* LTR */
 }
 #name-and-slogan {
   float: left; /* LTR */
@@ -631,7 +631,7 @@ h1#page-title {
 }
 .field-type-taxonomy-term-reference .field-label,
 .field-type-taxonomy-term-reference ul.links {
-  font-size: 0.8em;
+  /*font-size: 1em;*/
 }
 .node-teaser .field-type-taxonomy-term-reference .field-label,
 .node-teaser .field-type-taxonomy-term-reference ul.links {

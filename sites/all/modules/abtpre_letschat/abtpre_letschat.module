@@ -11,9 +11,11 @@
 function abtpre_letschat_node_view_alter(&$build) {
   unset($build['links']['comment']);
   dsm($build);
-  foreach (element_children($build['comments']['comments']) as $number) {if (is_numeric($number)) {
-    unset($build['comments']['comments'][$number]['links']['comment']['#links']['comment-reply']);
-  }}
+  if (!empty($build['comments'])) {
+    foreach (element_children($build['comments']['comments']) as $number) {if (is_numeric($number)) {
+      unset($build['comments']['comments'][$number]['links']['comment']['#links']['comment-reply']);
+    }}
+  }
 }
 
 /**
@@ -200,11 +202,12 @@ function abtpre_letschat_form_alter(&$form, &$form_state, $form_id) {
   global $user;
 
 
+  $qs = drupal_get_query_parameters();
+
   if (strpos($form_id, 'comment_node') !== false) {
-    $form['field_purpose']['#type'] = 'hidden'; 
+    $form['field_purpose']['#attributes']['style'] = 'display:none'; 
   }
 
-  $qs = drupal_get_query_parameters();
   // Forms to modify fields uid and year
   $target_forms = array('performance_objectives_node_form', 'development_plan_node_form', 'self_assessment_node_form');
   

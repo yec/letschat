@@ -101,7 +101,8 @@ function abtpre_letschat_menu() {
   );
 
   $items['letschat/%user/print'] = array(
-    'title' => 'Let\'s Chat Agreement',
+    'title arguments' => array("Let's Chat Agreement @name", 1),
+    'title callback' => 'abtpre_letschat_title',
     'access callback' => true,
     'page arguments' => array(1),
     'page callback' => 'abtpre_letschat_print',

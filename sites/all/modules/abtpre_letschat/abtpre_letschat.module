@@ -749,6 +749,7 @@ function abtpre_letschat_form_questions($form, &$form_state) {
 
 function abtpre_letschat_org_form($form, &$form_state) {
   $sql = 'select 
+    ul.p1,
     u.uid,
     u.name,
     if (ul.depth is null, 1, if (ul.depth = 0, 1, ul.depth)) depth,
@@ -758,9 +759,10 @@ function abtpre_letschat_org_form($form, &$form_state) {
     left join {abtpre_letschat_users_leader} ul on u.uid = ul.uid
     join {users_roles} ur on u.uid = ur.uid
     where ur.rid = 4
-    order by weight, depth';
+    order by p1';
   $result = db_query($sql, array(), array('fetch' => PDO::FETCH_ASSOC));
   $uids = array();
+
   foreach ($result as $record) {
     $users[] = $record;
   }
@@ -839,6 +841,7 @@ function abtpre_letschat_org_form_submit(&$form, &$form_state) {
   // need to save order in which post sends cause parent needs
   // to be saved first.
 
+  $count = 1;
   foreach ($form_state['input'] as $uid => $value) {
     if (is_numeric($uid)) {
 
@@ -847,6 +850,7 @@ function abtpre_letschat_org_form_submit(&$form, &$form_state) {
         'weight' => $value['weight'],
         'leader_uid' => $value['luid'],
         'depth' => 1,
+        'p1' => $count++,
       );
 
       // Set depth by finding parent depth first

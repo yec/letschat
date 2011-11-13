@@ -153,7 +153,7 @@ function abtpre_letschat_menu() {
   );
 
   $items['admin/letschat/org'] = array(
-    'title' => t('Organisational chart'),
+    'title' => t('Organise and add people'),
     'description' => t('Manage organisational structure.'),
     'access callback' => true,
     'page callback' => 'drupal_get_form',
@@ -770,6 +770,24 @@ function abtpre_letschat_org_form($form, &$form_state) {
   $tree = abtpre_letschat_org_tree_data($users);
 
   $form = _abtpre_letschat_org_tree_form($tree);
+
+  $form['add'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Quick add people'),
+    '#collapsed' => true,
+    '#collapsible' => true,
+  );
+  $form['add']['help'] = array(
+    '#markup' => '<ul><li>Include a comma seperated list of email addresses
+      to quickly add people to the organisation. The
+      username will be the same as the email. You can change it for the employee
+      by clicking edit. The employee cannot change the username themselves.
+      </li><li>After the people are added and you are ready to launch, go to '.l('people admin','admin/people').', check the users and select "unblock the selected users". This will send them a welcome email and they will be able to log in.</li><li>Alternatively add people through the usual method at '.
+      l('add people',"admin/people/create").'</li></ul>'
+  );
+  $form['add']['people'] = array(
+    '#type' => 'textarea',
+  );
   
   $form['save'] = array(
     '#type' => 'submit',
@@ -838,9 +856,25 @@ function _abtpre_letschat_org_tree_form($accounts_tree) {
 }
 
 function abtpre_letschat_org_form_submit(&$form, &$form_state) {
+  $emails = explode(',', $form_state['values']['add']['people']);
+  foreach ($emails as $email) {
+    if (valid_email_address($email)) {
+      $account = (object) array();
+      $account->mail = $email;
+      $account->init = $email;
+      $account->name = $email;
+      $account->roles[4] = 'staff'; 
+      $account->status = 0;
+      $account->timezone = 'Australia/Melbourne';
+      $account->pass = 'asdf';
+      $edit = (array) $account;
+      user_save($account, $edit);
+      dpm($account);
+    }
+  }
+
   // need to save order in which post sends cause parent needs
   // to be saved first.
-
   $count = 1;
   foreach ($form_state['input'] as $uid => $value) {
     if (is_numeric($uid)) {
@@ -880,6 +914,7 @@ function theme_abtpre_letschat_org_form($variables) {
 
   $header = array(
     t('People'),
+    t('Operations'),
     t('Weight'),
   );
 
@@ -897,6 +932,7 @@ function theme_abtpre_letschat_org_form($variables) {
 
       $row = array();
       $row[] = theme('indentation', array('size' => $element['#item']['depth'] - 1)) . drupal_render($element['title']);
+      $row[] = l(t('edit'), "user/$uid/edit");
       $row[] = drupal_render($element['weight']) . drupal_render($element['luid']) . drupal_render($element['uid']);
 
       $row = array_merge(array('data' => $row), $element['#attributes']);
@@ -904,7 +940,7 @@ function theme_abtpre_letschat_org_form($variables) {
       $rows[] = $row;
     }
   }
-  $output = '';
+  $output = drupal_render($form['add']);
   if (empty($rows)) {
     $rows[] = array(array('data' => $form['#empty_text'], 'colspan' => '7'));
   }

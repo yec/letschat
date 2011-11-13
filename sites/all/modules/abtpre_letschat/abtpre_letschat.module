@@ -265,10 +265,9 @@ function abtpre_letschat_form_alter(&$form, &$form_state, $form_id) {
       $form['field_person']['und']['#default_value'] = $qs['uid'];
     }
 
-    if (!variable_get('abtpre_letschat_debug', false)) {
-      $form['field_yid']['#attributes']['style'] = array('display:none');
-      $form['field_person']['#attributes']['style'] = array('display:none');
-    }
+    $form['field_yid']['#attributes']['style'] = array('display:none');
+    $form['field_person']['#attributes']['style'] = array('display:none');
+
     array_unshift($form['#validate'], 'abtpre_letschat_validate');
   }
 
@@ -773,11 +772,13 @@ function abtpre_letschat_org_form($form, &$form_state) {
   foreach ($result as $record) {
     $users[] = $record;
   }
-  
-  $tree = abtpre_letschat_org_tree_data($users);
+ 
+  if (isset($users)) { 
+    $tree = abtpre_letschat_org_tree_data($users);
+    $form = _abtpre_letschat_org_tree_form($tree);
+  }
 
-  $form = _abtpre_letschat_org_tree_form($tree);
-
+  $form ['#tree'] = true;
   $form['add'] = array(
     '#type' => 'fieldset',
     '#title' => t('Quick add people'),
@@ -800,7 +801,7 @@ function abtpre_letschat_org_form($form, &$form_state) {
     '#type' => 'submit',
     '#value' => t('Save'),
   );
-
+  $form['#empty_text'] = t('You need to add some people!');
   return $form;
 }
 
@@ -949,7 +950,7 @@ function theme_abtpre_letschat_org_form($variables) {
   }
   $output = drupal_render($form['add']);
   if (empty($rows)) {
-    $rows[] = array(array('data' => $form['#empty_text'], 'colspan' => '7'));
+    $rows[] = array(array('data' => $form['#empty_text'], 'colspan' => '3'));
   }
   $output .= theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => 'org-table')));
   $output .= drupal_render_children($form);

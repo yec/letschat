@@ -30,6 +30,12 @@ function abtpre_letschat_user_load($users) {
       ->fetchObject();
     if (!empty($result)) {
       $user->leader_uid = $result->leader_uid;
+      $user->weight = $result->weight;
+      $user->depth = $result->depth;
+    } else {
+      $user->leader_uid = 0;
+      $user->weight = 0;
+      $user->depth = 1;
     }
   }
 }
@@ -42,7 +48,7 @@ function abtpre_letschat_theme($existing, $type, $theme, $path) {
     'abtpre_letschat_admin_tasks' => array(
       'render element' => 'form'
     ),
-    'abtpre_letschat_form_org' => array(
+    'abtpre_letschat_org_form' => array(
       'render element' => 'form'
     ),
     'abtpre_letschat_manage_employees' => array(
@@ -151,7 +157,7 @@ function abtpre_letschat_menu() {
     'description' => t('Manage organisational structure.'),
     'access callback' => true,
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('abtpre_letschat_form_org'),
+    'page arguments' => array('abtpre_letschat_org_form'),
   );
 
   $items['admin/letschat/self'] = array(
@@ -741,15 +747,166 @@ function abtpre_letschat_form_questions($form, &$form_state) {
   return $form;
 }
 
-function abtpre_letschat_form_org($form, &$form_state) {
-  $query = db_select('users');
-  $query->addField('users', 'uid');
-  $results = $query->execute();
+function abtpre_letschat_org_form($form, &$form_state) {
+  $sql = 'select 
+    u.uid,
+    u.name,
+    if (ul.depth is null, 1, if (ul.depth = 0, 1, ul.depth)) depth,
+    if (ul.weight is null, 0, ul.weight) weight,
+    if (ul.leader_uid is null, 0, ul.leader_uid) leader_uid
+    from {users} u
+    left join {abtpre_letschat_users_leader} ul on u.uid = ul.uid
+    join {users_roles} ur on u.uid = ur.uid
+    where ur.rid = 4
+    order by weight, depth';
+  $result = db_query($sql, array(), array('fetch' => PDO::FETCH_ASSOC));
   $uids = array();
-  while($record = $results->fetchObject()) {
-    $uids[] = $record->uid;
+  foreach ($result as $record) {
+    $users[] = $record;
   }
-  $accounts = user_load_multiple($uids);
+  
+  $tree = abtpre_letschat_org_tree_data($users);
+
+  $form = _abtpre_letschat_org_tree_form($tree);
+  
+  $form['save'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+
+  return $form;
+}
+
+function abtpre_letschat_org_tree_data($accounts, $parents = array(), $depth = 1) {
+  $accounts = array_reverse($accounts);
+  return _abtpre_letschat_org_tree_data($accounts, $parents, $depth);
+}
+
+function _abtpre_letschat_org_tree_data(&$accounts, $parents, $depth) {
+  $tree = array();
+  while ($account = array_pop($accounts)) {
+    $tree[$account['uid']] = array(
+      'user' => $account,
+      'below' => array(),
+    );
+
+    $next = end($accounts);
+    if ($next && $next['depth'] > $depth) {
+      // Recursively call _menu_tree_data to build the sub-tree.
+      $tree[$account['uid']]['below'] = _abtpre_letschat_org_tree_data($accounts, $parents, $next['depth']);
+      // Fetch next link after filling the sub-tree.
+      $next = end($accounts);
+    }
+    if (!$next || $next['depth'] < $depth) {
+      break;
+    } 
+  }
+  return $tree;
+}
+
+function _abtpre_letschat_org_tree_form($accounts_tree) {
+  $form = &drupal_static(__FUNCTION__,array('#tree' => true));
+  foreach ($accounts_tree as $data) {
+    $item = $data['user'];
+    $form[$item['uid']]['#item'] = $item;
+    $form[$item['uid']]['title'] = array(
+      '#markup' => $item['name'],
+    );
+    $form[$item['uid']]['weight'] = array(
+        '#type' => 'weight',
+        '#delta' => 500,
+        '#title_display' => 'invisible',
+        '#default_value' => $item['weight'],
+    );
+    $form[$item['uid']]['luid'] = array(
+      '#type' => 'hidden',
+      '#default_value' => $item['leader_uid'],
+    );
+    $form[$item['uid']]['uid'] = array(
+      '#type' => 'hidden',
+      '#default_value' => $item['uid'],
+    );
+    
+    if ($data['below']) {
+      _abtpre_letschat_org_tree_form($data['below']);
+    }
+  }
+
+  return $form;
+}
+
+function abtpre_letschat_org_form_submit(&$form, &$form_state) {
+  // need to save order in which post sends cause parent needs
+  // to be saved first.
+
+  foreach ($form_state['input'] as $uid => $value) {
+    if (is_numeric($uid)) {
+
+      $user = array(
+        'uid' => $uid,
+        'weight' => $value['weight'],
+        'leader_uid' => $value['luid'],
+        'depth' => 1,
+      );
+
+      // Set depth by finding parent depth first
+      $parent = db_select('abtpre_letschat_users_leader','a')
+        ->fields('a')
+        ->condition('uid',$value['luid'])
+        ->execute()
+        ->fetchAssoc();
+
+      if (isset($parent)) {
+        $user['depth'] = $parent['depth'] + 1;
+      }
+
+      db_merge('abtpre_letschat_users_leader')
+        ->key(array('uid' => $uid))
+        ->fields($user)
+        ->execute();
+    }
+  }
+}
+
+function theme_abtpre_letschat_org_form($variables) {
+  $form =& $variables['form'];
+
+  drupal_add_tabledrag('org-table', 'match', 'parent', 'menu-luid', 'menu-luid', 'menu-uid', TRUE, MENU_MAX_DEPTH - 1);
+  drupal_add_tabledrag('org-table', 'order', 'sibling', 'menu-weight');
+
+  $header = array(
+    t('People'),
+    t('Weight'),
+  );
+
+  $rows = array();
+  foreach (element_children($form) as $uid) {
+    if (isset($form[$uid]['uid'])) {
+      $element =& $form[$uid];
+      // Add special classes to be used for tabledrag.js.
+      $element['luid']['#attributes']['class'] = array('menu-luid');
+      $element['uid']['#attributes']['class'] = array('menu-uid');
+      $element['weight']['#attributes']['class'] = array('menu-weight');
+
+      // Change the parent field to a hidden. This allows any value but hides the field.
+      $element['luid']['#type'] = 'hidden';
+
+      $row = array();
+      $row[] = theme('indentation', array('size' => $element['#item']['depth'] - 1)) . drupal_render($element['title']);
+      $row[] = drupal_render($element['weight']) . drupal_render($element['luid']) . drupal_render($element['uid']);
+
+      $row = array_merge(array('data' => $row), $element['#attributes']);
+      $row['class'][] = 'draggable';
+      $rows[] = $row;
+    }
+  }
+  $output = '';
+  if (empty($rows)) {
+    $rows[] = array(array('data' => $form['#empty_text'], 'colspan' => '7'));
+  }
+  $output .= theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => 'org-table')));
+  $output .= drupal_render_children($form);
+  return $output;
 }
 
 /** 

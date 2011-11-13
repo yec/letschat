@@ -423,7 +423,9 @@ function abtpre_letschat_create($node_type) {
   $employees = _abtpre_letschat_employees();
   $years = _abtpre_letschat_years(); 
   $qs = drupal_get_query_parameters();
-  return isset($years[$qs['yid']]) && ($user->uid == $qs['uid'] || isset($employees[$qs['uid']]));
+  if (isset($qs['yid'])) {
+    return isset($years[$qs['yid']]) && ($user->uid == $qs['uid'] || isset($employees[$qs['uid']]));
+  }
 }
 
 function abtpre_letschat_objectives_view() {

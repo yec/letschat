@@ -1275,6 +1275,7 @@ function _abtpre_letschat_leader($uid) {
  */
 function abtpre_letschat_view($account) {
   global $user;
-  return (user_access('letschat admin') || user_access('letschat participant'))
-    && $user->uid == $account->uid;
+  $employees = _abtpre_letschat_employees();
+  return user_access('letschat admin') || (user_access('letschat participant')
+    && ($user->uid == $account->uid || isset($employees[$account->uid])));
 }

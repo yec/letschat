@@ -65,6 +65,10 @@ function abtpre_letschat_permission() {
     'title' => t("Administer Let's Chat"),
     'description' => t('Perform administration tasks for Let\'s Chat.'),
   );
+  $perm['letschat participant'] = array(
+    'title' => t("Participate in Let's Chat"),
+    'description' => t("Participate in the Let's Chat program."),
+  );
   return $perm;
 }
 
@@ -72,11 +76,21 @@ function abtpre_letschat_permission() {
  * Implements hook_menu_alter()
  */
 function abtpre_letschat_menu_alter(&$items) {
-
+  // Set permissions for who can create what
+  // lets leaders create and view employees content
+  // employees cant create or view other employees content
   $items['node/%node/edit']['access callback'] = 'abtpre_letschat_authorization';
   $items['node/%node/edit']['access arguments'] = array(1,'edit');
   $items['node/%node/view']['access callback'] = 'abtpre_letschat_authorization';
   $items['node/%node/view']['access arguments'] = array(1,'view');
+  $items['node/%node']['access callback'] = 'abtpre_letschat_authorization';
+  $items['node/%node']['access arguments'] = array(1,'view');
+  $items['node/add/development-plan']['access callback'] = 'abtpre_letschat_create';
+  $items['node/add/development-plan']['access arguments'] = array(2);
+  $items['node/add/performance-objectives']['access callback'] = 'abtpre_letschat_create';
+  $items['node/add/performance-objectives']['access arguments'] = array(2);
+  $items['node/add/self-assessment']['access callback'] = 'abtpre_letschat_create';
+  $items['node/add/self-assessment']['access arguments'] = array(2);
 }
 
 /**
@@ -93,7 +107,8 @@ function abtpre_letschat_menu() {
   $items['letschat/%user'] = array(
     //'title arguments' => array("Welcome"),
     //'title callback' => 'abtpre_letschat_title_user',
-    'access callback' => true,
+    'access callback' => 'abtpre_letschat_view',
+    'access arguments' => array(1),
     'page callback' => 'abtpre_letschat_welcome',
     'page arguments' => array(1),
     'weight' => 5,
@@ -101,7 +116,8 @@ function abtpre_letschat_menu() {
 
   $items['letschat/%user/my'] = array(
     'title' => 'My objectives',
-    'access callback' => true,
+    'access callback' => 'abtpre_letschat_view',
+    'access arguments' => array(1),
     'page callback' => 'abtpre_letschat_welcome',
     'page arguments' => array(1),
     'type' => MENU_DEFAULT_LOCAL_TASK,
@@ -111,6 +127,7 @@ function abtpre_letschat_menu() {
   $items['letschat/%user/employees'] = array(
     'title' => 'Employees',
     'access callback' => '_abtpre_letschat_has_employees',
+    'access arguments' => array(1),
     'page arguments' => array('abtpre_letschat_manage_employees'),
     'page callback' => 'drupal_get_form',
     'weight' => 2,
@@ -120,7 +137,8 @@ function abtpre_letschat_menu() {
   $items['letschat/%user/print'] = array(
     'title arguments' => array("Let's Chat Agreement @name", 1),
     'title callback' => 'abtpre_letschat_title',
-    'access callback' => true,
+    'access callback' => 'abtpre_letschat_view',
+    'access arguments' => array(1),
     'page arguments' => array(1),
     'page callback' => 'abtpre_letschat_print',
     'type' => MENU_CALLBACK,
@@ -130,7 +148,7 @@ function abtpre_letschat_menu() {
   $items['admin/letschat'] = array(
     'title' => "Let's Chat",
     'description' => t('Configure let\'s chat. Add categories for objectives and create org chart.'),
-    'access callback' => true,
+    'access arguments' => array('letschat admin'),
     'page callback' => 'system_admin_menu_block_page',
     'file' => 'system.admin.inc',
     'file path' => drupal_get_path('module', 'system'),
@@ -139,7 +157,7 @@ function abtpre_letschat_menu() {
   $items['admin/letschat/categories'] = array(
     'title' => 'Objective categories',
     'description' => t('Manage objective categories.'),
-    'access callback' => true,
+    'access arguments' => array('letschat admin'),
     'page callback' => 'drupal_goto',
     'page arguments' => array('admin/structure/taxonomy/category', array('query' => array('destination' => 'admin/letschat'))),
   );
@@ -147,7 +165,7 @@ function abtpre_letschat_menu() {
   $items['admin/letschat/tasks'] = array(
     'title' => 'Control tasks',
     'description' => t('Control what tasks are available to staff. Tasks become relevant at different times of year.'),
-    'access callback' => true,
+    'access arguments' => array('letschat admin'),
     'page callback' => 'drupal_get_form',
     'page arguments' => array('abtpre_letschat_admin_tasks'),
   );
@@ -155,7 +173,7 @@ function abtpre_letschat_menu() {
   $items['admin/letschat/org'] = array(
     'title' => 'Organise and add people',
     'description' => t('Manage organisational structure.'),
-    'access callback' => true,
+    'access arguments' => array('letschat admin'),
     'page callback' => 'drupal_get_form',
     'page arguments' => array('abtpre_letschat_org_form'),
   );
@@ -163,7 +181,7 @@ function abtpre_letschat_menu() {
   $items['admin/letschat/self'] = array(
     'title' => 'Self assessment questions',
     'description' => t('Manage self assessment questions.'),
-    'access callback' => true,
+    'access arguments' => array('letschat admin'),
     'page callback' => 'drupal_goto',
     'page arguments' => array('admin/structure/types/manage/self-assessment/fields', array('query' => array('destination' => 'admin/letschat')))
   );
@@ -171,7 +189,7 @@ function abtpre_letschat_menu() {
   $items['admin/letschat/overview'] = array(
     'title' => 'Agreements overview',
     'description' => t('View all employees responses.'),
-    'access callback' => true,
+    'access arguments' => array('letschat admin'),
     'page callback' => 'abtpre_letschat_overview'
   );
 
@@ -400,8 +418,12 @@ function abtpre_letschat_front() {
   drupal_goto('letschat/'.$user->uid);
 }
 
-function abtpre_letschat_create() {
-  return '';
+function abtpre_letschat_create($node_type) {
+  global $user; 
+  $employees = _abtpre_letschat_employees();
+  $years = _abtpre_letschat_years(); 
+  $qs = drupal_get_query_parameters();
+  return isset($years[$qs['yid']]) && ($user->uid == $qs['uid'] || isset($employees[$qs['uid']]));
 }
 
 function abtpre_letschat_objectives_view() {
@@ -1073,10 +1095,10 @@ function _abtpre_letschat_review_action($nodes, $type, $purpose) {
   }
 }
 
-function _abtpre_letschat_has_employees() {
-  
+function _abtpre_letschat_has_employees($account) {
+  global $user;
   if (count(_abtpre_letschat_employees()) > 0) {
-    return true;
+    return $user->uid == $account->uid;
   } else {
     return false;
   }
@@ -1246,4 +1268,13 @@ function _abtpre_letschat_leader($uid) {
   else {
     return '';
   }
+}
+
+/**
+ * Access callbacks
+ */
+function abtpre_letschat_view($account) {
+  global $user;
+  return (user_access('letschat admin') || user_access('letschat participant'))
+    && $user->uid == $account->uid;
 }

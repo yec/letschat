@@ -128,7 +128,7 @@ function abtpre_letschat_menu() {
   );
 
   $items['admin/letschat'] = array(
-    'title' => t("Let's Chat"),
+    'title' => "Let's Chat",
     'description' => t('Configure let\'s chat. Add categories for objectives and create org chart.'),
     'access callback' => true,
     'page callback' => 'system_admin_menu_block_page',
@@ -137,7 +137,7 @@ function abtpre_letschat_menu() {
   );
 
   $items['admin/letschat/categories'] = array(
-    'title' => t('Objective categories'),
+    'title' => 'Objective categories',
     'description' => t('Manage objective categories.'),
     'access callback' => true,
     'page callback' => 'drupal_goto',
@@ -145,7 +145,7 @@ function abtpre_letschat_menu() {
   );
 
   $items['admin/letschat/tasks'] = array(
-    'title' => t('Control tasks'),
+    'title' => 'Control tasks',
     'description' => t('Control what tasks are available to staff. Tasks become relevant at different times of year.'),
     'access callback' => true,
     'page callback' => 'drupal_get_form',
@@ -153,7 +153,7 @@ function abtpre_letschat_menu() {
   );
 
   $items['admin/letschat/org'] = array(
-    'title' => t('Organise and add people'),
+    'title' => 'Organise and add people',
     'description' => t('Manage organisational structure.'),
     'access callback' => true,
     'page callback' => 'drupal_get_form',
@@ -161,11 +161,18 @@ function abtpre_letschat_menu() {
   );
 
   $items['admin/letschat/self'] = array(
-    'title' => t('Self assessment questions'),
-    'description' => t('Manage self assessment questions'),
+    'title' => 'Self assessment questions',
+    'description' => t('Manage self assessment questions.'),
     'access callback' => true,
     'page callback' => 'drupal_goto',
     'page arguments' => array('admin/structure/types/manage/self-assessment/fields', array('query' => array('destination' => 'admin/letschat')))
+  );
+
+  $items['admin/letschat/overview'] = array(
+    'title' => 'Agreements overview',
+    'description' => t('View all employees responses.'),
+    'access callback' => true,
+    'page callback' => 'abtpre_letschat_overview'
   );
 
   return $items;
@@ -363,7 +370,7 @@ function theme_abtpre_letschat_manage_employees($variables) {
   
 
     foreach (element_children($form['employees'][$yid]) as $uid) {
-      $row[] = array('rowspan' => 1, 'data' => $employees[$uid].' '. l('print', "letschat/$uid/print", array('attributes' => array('target'=> '_blank'),'query'=>array('yid'=>$yid))));
+      $row[] = array('rowspan' => 1, 'data' => $employees[$uid].' '._abtpre_letschat_leader($uid).' '. l('print', "letschat/$uid/print", array('attributes' => array('target'=> '_blank'),'query'=>array('yid'=>$yid))));
 
       foreach (element_children($form['employees'][$yid][$uid]) as $purpose) {
         if ($purpose == 'rating') {
@@ -1016,10 +1023,16 @@ function _abtpre_letschat_curyear() {
 
 function _abtpre_letschat_employees() {
   global $user;
-  $results = db_select('abtpre_letschat_users_leader','a')
-            ->fields('a')
-            ->condition('leader_uid', $user->uid, '=')
-            ->execute();
+  if (user_access('letschat admin')) {
+    $results = db_select('abtpre_letschat_users_leader','a')
+              ->fields('a')
+              ->execute();
+  } else {
+    $results = db_select('abtpre_letschat_users_leader','a')
+              ->fields('a')
+              ->condition('leader_uid', $user->uid, '=')
+              ->execute();
+  }
   $uids = array();
   while ($record = $results->fetchObject()) {
     $uids[] = $record->uid;
@@ -1208,5 +1221,28 @@ function abtpre_letschat_authorization($node, $action) {
         return !_abtpre_letschat_approved($node->nid,'view');      
       }
     }
+  }
+}
+
+function abtpre_letschat_overview() {
+
+  $output = drupal_render(drupal_get_form('abtpre_letschat_manage_employees'));
+  return $output;
+}
+
+function _abtpre_letschat_leader($uid) {
+  if (user_access('letschat admin')) {
+    $result = db_select('abtpre_letschat_users_leader','a')
+      ->fields('a')
+      ->condition('uid', $uid)
+      ->execute()
+      ->fetchObject(); 
+    if ($result->leader_uid > 0) {
+      $account = user_load($result->leader_uid);
+      return "<br />Leader: $account->name";
+    }
+  }
+  else {
+    return '';
   }
 }

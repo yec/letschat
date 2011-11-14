@@ -8,20 +8,14 @@ function theme_field_collection_table_multiple_value_field($variables) {
   $header = array();
   $cells = array();
   foreach (field_info_instances($element['#entity_type'], $element['#bundle']) as $field_name => $instance) {
-    $field = $element[$field_name];
-    if (empty($field)) {
+    if (empty($element[$field_name])) {
       continue;
     }
-    if (isset($field['#language']) && isset($field[$field['#language']])) {
-      $header[] = $field[$field['#language']]['#title'];
-    }
-    elseif (isset($field['#title'])) {
-      $header[] = $field['#title'];
-    }
-    else {
-      $header[] = '';
-    }
-    $cells[] = array('data' => $field);
+
+    $header[] = _field_collection_table_get_title($element[$field_name]);
+    $cells[] = array('data' => $element[$field_name]);
+
+    // Remove the original field to prevent duplicate printing.
     unset($element[$field_name]);
   }
 
@@ -79,27 +73,27 @@ function theme_field_collection_table_multiple_value_fields($variables) {
       $cells = array(
         array('data' => '', 'class' => array('field-multiple-drag')),
       );
-      foreach (element_children($item) as $child) {
-        if (isset($item[$child]['#language']) && $key == 0) {
+      foreach (element_children($item) as $field_name) {
+        // Only add the header once.
+        if ($key == 0) {
           $header[] = array(
-            'data' => '<label>' . t('!title', array('!title' => $item[$child][$item[$child]['#language']]['#title'])) . '</label>',
+            'data' => '<label>' . t('!title', array('!title' => _field_collection_table_get_title($item[$field_name]))) . '</label>',
             'class' => array('field-label'),
           );
         }
-        $cells[] = array('data' => $item[$child]);
+        $cells[] = array('data' => $item[$field_name]);
       }
       $rows[] = array(
         'data' => $cells,
         'class' => array('draggable'),
       );
     }
-    $header[] = t('Order');
 
     $output = array(
       '#prefix' => '<div class="form-item">',
       '#suffix' => '</div>',
     );
-    $output[] = array(
+    $output['field_collection_table'] = array(
       '#theme' => 'table',
       '#header' => $header,
       '#rows' => $rows,
@@ -181,4 +175,26 @@ function _field_collection_table_hide_empty(&$variables) {
  */
 function theme_table__field_collection_table($variables) {
   return theme_table($variables);
+}
+
+/**
+ * Helps find the title of the field, as it could be in several places.
+ */
+function _field_collection_table_get_title($field) {
+  $title = '';
+
+  if (isset($field['#language']) && isset($field[$field['#language']])) {
+    $language = $field['#language'];
+    if (isset($field[$language]['#title'])) {
+      $title = $field[$language]['#title'];
+    }
+    elseif (isset($field[$language][0]['#title'])) {
+      $title = $field[$language][0]['#title'];
+    }
+  }
+  elseif (isset($field['#title'])) {
+    $title = empty($field['#is_weight']) ? $field['#title'] : t('Order');
+  }
+
+  return $title;
 }

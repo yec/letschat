@@ -4,9 +4,9 @@ core = 7.x
 configure = admin/config/user-interface/field_collection_table
 dependencies[] = field_collection
 
-; Information added by drupal.org packaging script on 2011-09-10
-version = "7.x-1.0-alpha2"
+; Information added by drupal.org packaging script on 2011-09-29
+version = "7.x-1.x-dev"
 core = "7.x"
 project = "field_collection_table"
-datestamp = "1315687302"
+datestamp = "1317255181"
 

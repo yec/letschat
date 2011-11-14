@@ -1,3 +1,10 @@
+<script>
+(function ($) {
+  $(document).ready(function() {
+    window.print();
+  });
+}(jQuery));
+</script>
 <?php
 
 /**

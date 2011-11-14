@@ -810,10 +810,8 @@ function abtpre_letschat_org_form($form, &$form_state) {
     '#collapsible' => true,
   );
   $form['add']['help'] = array(
-    '#markup' => '<ul><li>Include a comma seperated list of email addresses
-      to quickly add people to the organisation. The
-      username will be the same as the email. You can change it for the employee
-      by clicking edit. The employee cannot change the username themselves.
+    '#markup' => '<ul><li>Include a comma seperated list of name and email addresses
+      to quickly add people to the organisation. Each person record should be in the form: "Full Name" &lt;emailaddress@domain&gt;.
       </li><li>After the people are added and you are ready to launch, go to '.l('people admin','admin/people').', check the users and select "unblock the selected users". This will send them a welcome email and they will be able to log in.</li><li>Alternatively add people through the usual method at '.
       l('add people',"admin/people/create").'</li></ul>'
   );
@@ -888,20 +886,42 @@ function _abtpre_letschat_org_tree_form($accounts_tree) {
 }
 
 function abtpre_letschat_org_form_submit(&$form, &$form_state) {
-  $emails = explode(',', $form_state['values']['add']['people']);
-  foreach ($emails as $email) {
-    if (valid_email_address($email)) {
+  $emails = str_getcsv($form_state['values']['add']['people']);
+  foreach ($emails as $record) {
+    // Get email address
+    preg_match('/<(.+)>/', $record, $matches);
+    if (!isset($matches[1])) {
+      continue;
+    }
+    $email = $matches[1];
+
+    // Get name
+    preg_match('/\s*(.*?)\s*</', $record, $matches);
+    if (!isset($matches[1]) || empty($matches[1])) {
+      continue;
+    }
+    $name = $matches[1];
+
+    // User is in db?
+    if (db_query("SELECT COUNT(*) FROM {users} WHERE name = :name or mail = :mail", array(':mail' => $email, ':name' => $name))->fetchField()) {
+      drupal_set_message("$name with email $email already exists, not added.", 'warning');
+      continue;
+    }
+
+    if (valid_email_address($email) && !($error = user_validate_name($name))) {
       $account = (object) array();
       $account->mail = $email;
       $account->init = $email;
-      $account->name = $email;
+      $account->name = $name;
       $account->roles[4] = 'staff'; 
       $account->status = 0;
       $account->timezone = 'Australia/Melbourne';
       $account->pass = 'asdf';
       $edit = (array) $account;
       user_save($account, $edit);
-      dpm($account);
+      drupal_set_message("$name with email $email added.", 'status');
+    } else {
+      drupal_set_message("$name with email $email wasn't added. $error", 'error');
     }
   }
 

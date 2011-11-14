@@ -9,11 +9,14 @@
  * Implements hook_node_view_alter()
  */
 function abtpre_letschat_node_view_alter(&$build) {
+  // remove Add new comment
   unset($build['links']['comment']);
-  dsm($build);
   if (!empty($build['comments'])) {
     foreach (element_children($build['comments']['comments']) as $number) {if (is_numeric($number)) {
       unset($build['comments']['comments'][$number]['links']['comment']['#links']['comment-reply']);
+      if (!abtpre_letschat_can_edit_comment($number)) {
+        unset($build['comments']['comments'][$number]['links']['comment']['#links']['comment-edit']);
+      }
     }}
   }
 }
@@ -91,6 +94,8 @@ function abtpre_letschat_menu_alter(&$items) {
   $items['node/add/performance-objectives']['access arguments'] = array(2);
   $items['node/add/self-assessment']['access callback'] = 'abtpre_letschat_create';
   $items['node/add/self-assessment']['access arguments'] = array(2);
+  $items['comment/%comment/edit']['access callback'] = 'abtpre_letschat_can_edit_comment';
+  $items['comment/%comment/edit']['access arguments'] = array(1);
 }
 
 /**
@@ -1292,4 +1297,11 @@ function abtpre_letschat_view($account) {
   $employees = _abtpre_letschat_employees();
   return user_access('letschat admin') || (user_access('letschat participant')
     && ($user->uid == $account->uid || isset($employees[$account->uid])));
+}
+
+function abtpre_letschat_can_edit_comment($comment) {
+  if (is_numeric($comment)) {
+    $comment = comment_load($comment);
+  }
+  return !_abtpre_letschat_approved($comment->nid, $comment->field_purpose['und'][0]['value']);
 }

@@ -621,7 +621,7 @@ function abtpre_letschat_welcome($user = null) {
       }
       if (variable_get('annual_'.$yid)) {
         $rows[] = array(
-          array('data' => 'Annual review', 'rowspan' => 3),
+          array('data' => 'Annual review', 'rowspan' => 2),
           array('data' => _abtpre_letschat_review_action($year_plans, 'performance_objectives', 'annual')),
           array('data' => _abtpre_letschat_review_action($year_plans, 'development_plan', 'annual'))
         );
@@ -648,14 +648,6 @@ function abtpre_letschat_welcome($user = null) {
             'data' => $data,
           )
         );
-
-        $rows[] = array(
-          array(
-            'colspan' => 2,
-            'data' => _abtpre_letschat_review_action($year_plans, 'self_assessment', 'annual'),
-          )
-        );
-
       }
     }
   }

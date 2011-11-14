@@ -397,10 +397,10 @@ function theme_abtpre_letschat_manage_employees($variables) {
       'module' => 'abtpre_letschat',
       'topic' => 'annual-review',
       )).'</div>', 'colspan' => 3); 
-    $row[] = array('header' => 1, 'data' => 'Performance rating score<div style="float:right">'.theme('advanced_help_topic', array(
+    $row[] = array('header' => 1, 'data' => '<div style="float:right">'.theme('advanced_help_topic', array(
       'module' => 'abtpre_letschat',
       'topic' => 'performance-rating-score',
-      )).'</div>',
+      )).'</div>Performance rating score',
       'colspan' => 1); 
     $rows[] = $row;
     unset($row); 

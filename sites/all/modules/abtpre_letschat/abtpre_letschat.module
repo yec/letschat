@@ -346,7 +346,7 @@ function abtpre_letschat_manage_employees($form, &$form_state) {
         '#type' => 'select',
         '#title' => t('Performance rating'),
         '#title_display' => 'invisible',
-        '#options' => array('U','DP','SP','EP','DM'),
+        '#options' => array('Select rating','U','DP','SP','EP','DM'),
         '#default_value' => _abtpre_letschat_rating($yid, $uid),
         '#ajax' => array(
           'progress' => array('message' => '', 'type' => 'throbber'),

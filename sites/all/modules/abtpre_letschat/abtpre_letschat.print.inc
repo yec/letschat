@@ -60,11 +60,11 @@ function _abtpre_letschat_node_comments($node) {
 }
 
 function _abtpre_letschat_variable($code) {
-
-  $variables[0] = t('Unable to assess');
-  $variables[1] = t('Developing performer');
-  $variables[2] = t('Solid performer');
-  $variables[3] = t('Excelling performer');
-  $variables[4] = t('Difference maker');
+  $variables[0] = '';
+  $variables[1] = t('Unable to assess');
+  $variables[2] = t('Developing performer');
+  $variables[3] = t('Solid performer');
+  $variables[4] = t('Excelling performer');
+  $variables[5] = t('Difference maker');
   return $variables[$code];
 }

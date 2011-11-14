@@ -379,9 +379,18 @@ function theme_abtpre_letschat_manage_employees($variables) {
     unset($row);
 
     $row[] = array('data' => 'Employee', 'header' => 1);
-    $row[] = array('header' => 1, 'data' => 'Set objectives', 'colspan' => 2); 
-    $row[] = array('header' => 1, 'data' => 'Half yearly progress review', 'colspan' => 2); 
-    $row[] = array('header' => 1, 'data' => 'Annual review', 'colspan' => 3); 
+    $row[] = array('header' => 1, 'data' => 'Set objectives<div style="float:right">'.theme('advanced_help_topic', array(
+      'module' => 'abtpre_letschat',
+      'topic' => 'set-objectives',
+      )).'</div>', 'colspan' => 2); 
+    $row[] = array('header' => 1, 'data' => 'Half yearly progress review<div style="float:right">'.theme('advanced_help_topic', array(
+      'module' => 'abtpre_letschat',
+      'topic' => 'half-yearly-review',
+      )).'</div>', 'colspan' => 2); 
+    $row[] = array('header' => 1, 'data' => 'Annual review<div style="float:right">'.theme('advanced_help_topic', array(
+      'module' => 'abtpre_letschat',
+      'topic' => 'annual-review',
+      )).'</div>', 'colspan' => 3); 
     $row[] = array('header' => 1, 'data' => 'Performance rating score<div style="float:right">'.theme('advanced_help_topic', array(
       'module' => 'abtpre_letschat',
       'topic' => 'performance-rating-score',

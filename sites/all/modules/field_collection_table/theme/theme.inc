@@ -77,7 +77,10 @@ function theme_field_collection_table_multiple_value_fields($variables) {
         // Only add the header once.
         if ($key == 0) {
           $header[] = array(
-            'data' => '<label>' . t('!title', array('!title' => _field_collection_table_get_title($item[$field_name]))) . '</label>',
+            'data' => '<label style="padding-left:10px">' . t('<div style="float:right">!help</div>!title', array('!title' => _field_collection_table_get_title($item[$field_name]), '!help' => theme('advanced_help_topic', array(
+      'module' => 'abtpre_letschat',
+      'topic' => _field_collection_table_get_title($item[$field_name]),
+      )))) . '</label>',
             'class' => array('field-label'),
           );
         }

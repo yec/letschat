@@ -258,6 +258,12 @@ function abtpre_letschat_form_alter(&$form, &$form_state, $form_id) {
 
   global $user;
 
+  if ($form_id == 'performance_objectives_node_form') {
+    $form['info'] = array(
+      '#markup' => t('Create your performance objectives for the performance year chosen. You can add as many lines as you need.')
+    );
+    dpm($form);
+  }
 
   $qs = drupal_get_query_parameters();
 

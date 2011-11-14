@@ -194,7 +194,7 @@ Drupal.tableDrag.prototype.hideColumns = function () {
     this.colSpan = this.colSpan - 1;
   });
   // Change link text.
-  $('.tabledrag-toggle-weight').text(Drupal.t('Show row weights'));
+  $('.tabledrag-toggle-weight').text(Drupal.t(''));
   // Change cookie.
   $.cookie('Drupal.tableDrag.showWeight', 0, {
     path: Drupal.settings.basePath,

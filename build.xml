@@ -10,7 +10,7 @@
         <echo msg="Pushing to uat..." />
         <exec command="rsync --exclude '*.bak' --exclude '.git' --exclude '.git/*' --exclude 'build.xml' --exclude 'letschat.sql' -av ./ -e ssh neo:/var/www/default/uatletschat" dir="${ws}/" />
         <!-- Database -->
-        <exec command="cat letschat.sql|ssh neo 'mysql uatletschat -uuatletschat -pzaphod70'" dir="${ws}/" />
+        <exec command="cat letschat.sql|ssh neo 'mysql uatletschat -uuatletschat -pasdf'" dir="${ws}/" />
     </target>
 </project>
 

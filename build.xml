@@ -8,11 +8,9 @@
 
     <target name="uat">
         <echo msg="Pushing to uat..." />
-        <exec command="sed -i .bak s/letschat/uatletschat/g sites/default/settings.php" dir="${ws}/" />
-        <exec command="sed -i .bak s/asdf/zaphod70/g sites/default/settings.php" dir="${ws}/" />
-        <exec command="rsync --delete --exclude '*.bak' --exclude '.git' --exclude '.git/*' --exclude 'build.xml' --exclude 'database.sql' -av ./ /var/www/uatletschat" dir="${ws}/" />
+        <exec command="rsync --exclude '*.bak' --exclude '.git' --exclude '.git/*' --exclude 'build.xml' --exclude 'letschat.sql' -av ./ -e ssh neo:/var/www/default/uatletschat" dir="${ws}/" />
         <!-- Database -->
-        <exec command="cat letschat.sql|mysql uatletschat -uuatletschat -pzaphod70" dir="${ws}/" />
+        <exec command="cat letschat.sql|ssh neo 'mysql uatletschat -uuatletschat -pzaphod70'" dir="${ws}/" />
     </target>
 </project>
 

@@ -22,7 +22,6 @@ function abtpre_letschat_node_view_alter(&$build) {
 }
 
 function abtpre_letschat_comment_view_alter(&$build) {
-  dpm($build);
   // remove Add new comment
   //unset($build['links']['comment']);
   unset($build['links']['comment']['#links']['comment-reply']);

@@ -1129,7 +1129,7 @@ function _abtpre_letschat_review_action($nodes, $type, $purpose) {
   global $user;
   
   if (!isset($nodes[$type])) {
-    return t('Create @type before doing @purpose review',array('@type' => $type, '@purpose' => $purpose));
+    return t('Create @type before doing @purpose review',array('@type' => str_replace('_',' ',$type), '@purpose' => $purpose));
   }
 
   $query = new EntityFieldQuery();
@@ -1142,10 +1142,10 @@ function _abtpre_letschat_review_action($nodes, $type, $purpose) {
 
   if (!empty($result)) {
     $cid = array_pop(array_keys($result['comment']));
-    return l('View review', 'comment/'.$cid, array('attributes' => array('style' => 'color:green'), 'query' => array('purpose' => $purpose, 'destination' => '/')));
+    return l(t("View @purpose review of @type", array('@purpose' => $purpose, '@type' => str_replace('_', ' ', $type))), 'comment/'.$cid, array('attributes' => array('style' => 'color:green'), 'query' => array('purpose' => $purpose, 'destination' => '/')));
   }
   else {
-    return l('Do review', 'comment/reply/'.$nodes[$type]->nid, array('query' => array('purpose' => $purpose, 'destination' => '/')));
+    return l(t("Do @purpose review of @type", array('@purpose' => $purpose, '@type' => str_replace('_', ' ', $type))), 'comment/reply/'.$nodes[$type]->nid, array('attributes' => array('style' => 'color:red'), 'query' => array('purpose' => $purpose, 'destination' => '/')));
   }
 }
 

@@ -21,6 +21,16 @@ function abtpre_letschat_node_view_alter(&$build) {
   }
 }
 
+function abtpre_letschat_comment_view_alter(&$build) {
+  dpm($build);
+  // remove Add new comment
+  //unset($build['links']['comment']);
+  unset($build['links']['comment']['#links']['comment-reply']);
+  if (!abtpre_letschat_can_edit_comment($build['comment_body']['#object']->cid)) {
+    unset($build['links']['comment']['#links']['comment-edit']);
+  }
+}
+
 /**
  * Implements hook_user_load().
  */
@@ -267,6 +277,17 @@ function abtpre_letschat_form_alter(&$form, &$form_state, $form_id) {
   $qs = drupal_get_query_parameters();
 
   if (strpos($form_id, 'comment_node') !== false) {
+    $query = new EntityFieldQuery();
+    $result = $query
+      ->entityCondition('entity_type', 'comment')
+      ->propertyCondition('nid', $form['#node']->nid)
+      ->execute();
+    if ($result['comment']) {
+    $comments = comment_load_multiple(array_keys($result['comment']));
+    $form['comments'] = array(
+      '#markup' => drupal_render(comment_view_multiple($comments, $form['#node']))
+    );
+    }
     $form['field_purpose']['#attributes']['style'] = 'display:none'; 
     array_unshift($form['#validate'], 'abtpre_letschat_author_alter');
   }

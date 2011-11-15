@@ -38,7 +38,7 @@ function abtpre_letschat_print($user) {
     $output[] = _abtpre_letschat_node_comments($node);
   }
   if ($rating = _abtpre_letschat_rating($yid, $user->uid)) {
-    $output[] = array('#markup' => t('Overall rating: @rating', array('@rating' => _abtpre_letschat_variable($rating))));
+    $output[] = array('#markup' => '<h3 style="text-align:center">'.t('Overall rating: @rating', array('@rating' => _abtpre_letschat_variable($rating))).'<br />'._abtpre_letschat_detail_rating($rating).'</h3>');
   }
   return $output;
 }
@@ -67,4 +67,14 @@ function _abtpre_letschat_variable($code) {
   $variables[4] = t('Excelling performer');
   $variables[5] = t('Difference maker');
   return $variables[$code];
+}
+
+function _abtpre_letschat_detail_rating($rating) {
+  $variables[0] = '';
+  $variables[1] = t('Too soon to say.');
+  $variables[2] = t('Currently developing the essential skills and abilities necessary to fully perform all aspects of the role.');
+  $variables[3] = t('Is a solid and reliable performer who possesses all the essential skills and abilities necessary for the role.');
+  $variables[4] = t('A highly skilled performer who contributes above and beyond the expectations of the role.');
+  $variables[5] = t('An outstanding performer who drives own development and who routinely makes a difference to business performance.');
+  return $variables[$rating];
 }

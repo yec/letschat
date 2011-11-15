@@ -262,13 +262,13 @@ function abtpre_letschat_form_alter(&$form, &$form_state, $form_id) {
     $form['info'] = array(
       '#markup' => t('Create your performance objectives for the performance year chosen. You can add as many lines as you need.')
     );
-    dpm($form);
   }
 
   $qs = drupal_get_query_parameters();
 
   if (strpos($form_id, 'comment_node') !== false) {
     $form['field_purpose']['#attributes']['style'] = 'display:none'; 
+    array_unshift($form['#validate'], 'abtpre_letschat_author_alter');
   }
 
   // Forms to modify fields uid and year
@@ -1167,11 +1167,18 @@ function _abtpre_letschat_leader_action($yid, $uid, $type, $purpose) {
       }
       elseif ($purpose == 'progress' || $purpose == 'annual') {
 
+        // Reviewer_uid is self by default
+        $reviewer_uid = $user->uid;
+        // if letschat admin reviewer uid is the leader id instead of the user logged in as 
+        if ($uid !== $user->uid && (user_access('letschat admin') || user_access('admin'))) {
+          $reviewer_uid = _abtpre_letschat_leader_uid($uid);
+        }
+        $type_human = str_replace('_', ' ',$type);
         $query = new EntityFieldQuery();
         $result = $query
           ->entityCondition('entity_type', 'comment')
           ->propertyCondition('nid', $nid)
-          ->propertyCondition('uid', $user->uid)
+          ->propertyCondition('uid', $reviewer_uid)
           ->fieldCondition('field_purpose', 'value', $purpose)
           ->execute();
 
@@ -1180,11 +1187,11 @@ function _abtpre_letschat_leader_action($yid, $uid, $type, $purpose) {
           if ($type == 'self_assessment') {
             return l('self assessment', "comment/$cid", array('attributes'=>array('style'=>'color:green'),'query' => array('purpose' => $purpose)));
           } else {
-            return l('view comment', "comment/$cid", array('attributes'=>array('style'=>'color:green'),'query' => array('purpose' => $purpose)));
+            return l("see $type_human review", "comment/$cid", array('attributes'=>array('style'=>'color:green'),'query' => array('purpose' => $purpose)));
           }
         }
         else {
-          return l('write comment', "comment/reply/$nid", array('query' => array('destination' => $destination['destination'],'purpose' => $purpose)));
+          return l("review $type_human", "comment/reply/$nid", array('attributes'=>array('style'=>'color:red'),'query' => array('destination' => $destination['destination'],'purpose' => $purpose)));
         }
       }
     }
@@ -1195,7 +1202,7 @@ function _abtpre_letschat_leader_action($yid, $uid, $type, $purpose) {
       , array('query'=>array('destination' => $destination['destination'],'yid' => $yid,'uid'=>$uid)));
   }
   
-  return str_replace('_', ' ',$type);
+  return str_replace('_', ' ', "can't review ".$type." yet. create first.");
 }
 
 /*
@@ -1319,4 +1326,30 @@ function abtpre_letschat_can_edit_comment($comment) {
     $comment = comment_load($comment);
   }
   return !_abtpre_letschat_approved($comment->nid, $comment->field_purpose['und'][0]['value']);
+}
+
+function _abtpre_letschat_leader_uid($uid) {
+  $result = db_select('abtpre_letschat_users_leader','a')
+    ->fields('a')
+    ->condition('uid', $uid)
+    ->execute()
+    ->fetchObject(); 
+  if (!empty($result)) {
+    return $result->leader_uid;
+    
+  }
+  return 0;
+}
+
+/**
+ * write comment as leader if letschat admin
+ */ 
+function abtpre_letschat_author_alter(&$form, &$form_state) {
+  if (user_access('letschat admin') || user_access('admin')) {
+    $node = node_load($form_state['values']['nid']);
+    $leader = user_load(_abtpre_letschat_leader_uid($node->field_person['und'][0]['uid']));
+     
+    $form_state['values']['uid'] = $leader->uid;
+    $form_state['values']['name'] = $leader->name;
+  }
 }

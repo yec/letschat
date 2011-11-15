@@ -607,7 +607,7 @@ function abtpre_letschat_welcome($user = null) {
   if (empty($user)) {
     global $user;
   }
-  $output = 'Use this tool to write, review and edit preformance objectives, development plans and self assessments for you and your team.';
+  $output = 'Use this tool to write, review and edit preformance objectives, development plans and self assessments.';
 
 
   foreach (_abtpre_letschat_years() as $yid => $year) {

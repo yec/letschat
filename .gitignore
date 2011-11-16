@@ -7,3 +7,4 @@ sites/*/private
 
 *.swp
 dump.sh
+*DS_Store
